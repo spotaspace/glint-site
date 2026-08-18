@@ -382,6 +382,8 @@
   const install = document.getElementById("install");
   if (STORE_URL) {
     install.href = STORE_URL;
+    install.target = "_blank";
+    install.rel = "noopener";
   } else {
     install.textContent = "Coming to Chrome — days away";
     install.classList.add("soon");
