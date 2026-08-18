@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Glint — one good fact, every so often</title>
+<meta name="description" content="A quiet browser extension: one beautifully written fact every so often, and a one-key Focus view that turns any article into calm, warm-paper reading.">
+<style>
+  :root {
+    --night: #111318;
+    --panel: #181a20;
+    --line: rgba(255,255,255,0.08);
+    --ink: #f2efe9;
+    --muted: #8b8f98;
+    --amber: #e8b04b;
+    --paper: #f6f0e1;
+    --paper-ink: #2d2820;
+    --paper-muted: #8f866f;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--night);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.6;
+  }
+
+  .eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--amber);
+  }
+
+  /* ---------- header ---------- */
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 1020px;
+    margin: 0 auto;
+    padding: 26px 24px;
+  }
+  .wordmark {
+    font-family: var(--serif);
+    font-size: 21px;
+    color: var(--ink);
+    text-decoration: none;
+  }
+  .wordmark::after {
+    content: "";
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--amber);
+    margin-left: 7px;
+    vertical-align: 8px;
+  }
+  header nav a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 13px;
+    margin-left: 22px;
+  }
+  header nav a:hover { color: var(--ink); }
+
+  /* ---------- hero ---------- */
+  .hero {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 64px 24px 84px;
+    text-align: center;
+  }
+  .hero h1 {
+    font-family: var(--serif);
+    font-size: clamp(34px, 6vw, 52px);
+    font-weight: 500;
+    line-height: 1.15;
+    margin: 0 0 16px;
+    letter-spacing: -0.01em;
+  }
+  .hero .sub {
+    color: var(--muted);
+    font-size: 17px;
+    max-width: 480px;
+    margin: 0 auto 52px;
+  }
+
+  /* the live card — the point of the page */
+  .card {
+    text-align: left;
+    max-width: 400px;
+    margin: 0 auto 14px;
+    background: rgba(24, 26, 32, 0.94);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 18px 22px 20px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.25), 0 18px 44px rgba(0,0,0,0.4);
+    cursor: pointer;
+    transition: opacity 0.4s ease, transform 0.4s ease;
+  }
+  .card.swap { opacity: 0; transform: translateY(6px); }
+  .card .eyebrow { margin-bottom: 8px; }
+  .card .fact {
+    font-family: var(--serif);
+    font-size: 16.5px;
+    line-height: 1.55;
+    min-height: 78px;
+  }
+  .card .burn {
+    position: absolute;
+    left: 0; bottom: 0;
+    height: 2px;
+    width: 100%;
+    transform-origin: left center;
+    background: linear-gradient(90deg, rgba(232,176,75,0.9), rgba(232,176,75,0.35));
+  }
+  @keyframes burn { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+  .card:hover .burn { animation-play-state: paused; }
+
+  .hero .hint {
+    color: var(--muted);
+    font-size: 12px;
+    margin-bottom: 44px;
+  }
+  .hero .hint.live::before {
+    content: "";
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--amber);
+    margin-right: 7px;
+    vertical-align: 1px;
+  }
+
+  .cta {
+    display: inline-block;
+    background: var(--amber);
+    color: #1a1408;
+    font-weight: 600;
+    font-size: 15px;
+    text-decoration: none;
+    padding: 13px 26px;
+    border-radius: 999px;
+    transition: transform 0.15s ease;
+  }
+  .cta:hover { transform: translateY(-1px); }
+  .cta.soon { background: transparent; color: var(--muted); border: 1px dashed var(--line); cursor: default; }
+  .cta-sub { display: block; margin-top: 12px; color: var(--muted); font-size: 12px; }
+
+  /* ---------- how ---------- */
+  .how {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 0 24px 90px;
+  }
+  .how .row {
+    display: flex;
+    gap: 18px;
+    align-items: baseline;
+    padding: 22px 0;
+    border-top: 1px solid var(--line);
+  }
+  .how .row:last-child { border-bottom: 1px solid var(--line); }
+  .how .k {
+    font-family: var(--serif);
+    color: var(--amber);
+    font-size: 17px;
+    min-width: 148px;
+  }
+  .how .v { color: var(--muted); font-size: 15px; }
+  .how .v strong { color: var(--ink); font-weight: 500; }
+
+  /* ---------- focus band ---------- */
+  .focusband {
+    background: var(--paper);
+    color: var(--paper-ink);
+    padding: 88px 24px;
+  }
+  .focusband .inner { max-width: 680px; margin: 0 auto; }
+  .focusband .eyebrow { color: #a3720f; }
+  .focusband h2 {
+    font-family: var(--serif);
+    font-size: clamp(26px, 4.5vw, 36px);
+    font-weight: 500;
+    margin: 10px 0 18px;
+    line-height: 1.2;
+  }
+  .focusband p { color: #55503f; font-size: 16px; max-width: 560px; }
+  .focusband .kbd {
+    font-family: var(--sans);
+    font-size: 13px;
+    background: rgba(38,34,27,0.08);
+    border: 1px solid rgba(38,34,27,0.18);
+    border-radius: 6px;
+    padding: 2px 8px;
+    white-space: nowrap;
+  }
+  .focusband .mock {
+    margin-top: 40px;
+    background: #fbf7ec;
+    border: 1px solid rgba(38,34,27,0.12);
+    border-radius: 14px;
+    padding: 34px 38px;
+    font-family: var(--serif);
+    box-shadow: 0 10px 30px rgba(38,34,27,0.08);
+  }
+  .focusband .mock .t { font-size: 22px; font-weight: 600; margin: 0 0 6px; }
+  .focusband .mock .m {
+    font-family: var(--sans);
+    font-size: 10px; font-weight: 600;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--paper-muted);
+    padding-bottom: 14px;
+    border-bottom: 1px solid rgba(38,34,27,0.12);
+    margin-bottom: 16px;
+  }
+  .focusband .mock .b { font-size: 15.5px; line-height: 1.75; color: var(--paper-ink); }
+
+  /* ---------- channels ---------- */
+  .channels {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 88px 24px;
+    text-align: center;
+  }
+  .channels h2 {
+    font-family: var(--serif);
+    font-size: clamp(24px, 4vw, 32px);
+    font-weight: 500;
+    margin: 10px 0 30px;
+  }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .chip {
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 7px 15px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .chip.on { color: var(--ink); border-color: rgba(232,176,75,0.55); }
+  .chip.add { border-style: dashed; color: var(--amber); }
+  .channels .note { color: var(--muted); font-size: 13px; margin-top: 24px; }
+
+  /* ---------- matrix ---------- */
+  .matrix {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 0 24px 90px;
+    text-align: center;
+  }
+  .matrix img {
+    width: 100%;
+    border-radius: 14px;
+    border: 1px solid var(--line);
+  }
+
+  /* ---------- quiet ---------- */
+  .quiet {
+    max-width: 620px;
+    margin: 0 auto;
+    padding: 0 24px 100px;
+    text-align: center;
+  }
+  .quiet p {
+    font-family: var(--serif);
+    font-size: 19px;
+    line-height: 1.7;
+    color: var(--ink);
+  }
+  .quiet .sub { font-family: var(--sans); color: var(--muted); font-size: 13.5px; }
+
+  footer {
+    border-top: 1px solid var(--line);
+    padding: 30px 24px 44px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  footer a { color: var(--muted); }
+  footer a:hover { color: var(--ink); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .card .burn { animation: none !important; }
+    .card, .cta { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="wordmark" href="/">Glint</a>
+  <nav>
+    <a href="#focus">Focus</a>
+    <a href="#channels">Channels</a>
+    <a href="privacy.html">Privacy</a>
+  </nav>
+</header>
+
+<section class="hero">
+  <h1>One good fact,<br>every so often.</h1>
+  <p class="sub">A quiet card while you work: something genuinely interesting, freshly written each morning. Hover to keep it. Click to dismiss. Or just let it leave.</p>
+
+  <div class="card" id="card" title="Click for another">
+    <div class="eyebrow" id="cardChannel">Today in history</div>
+    <div class="fact" id="cardFact">Oxford University is older than the Aztec Empire — teaching began by 1096; Tenochtitlan was founded in 1325.</div>
+    <div class="burn" id="burn"></div>
+  </div>
+  <div class="hint" id="hint">A real card. Hover to pause it — just like the extension.</div>
+
+  <a class="cta" id="install" href="#">Add Glint to Chrome</a>
+  <span class="cta-sub">Free · no account · takes ten seconds</span>
+</section>
+
+<section class="how">
+  <div class="row"><div class="k">Every so often</div><div class="v">A small card slides in with <strong>one fact or story</strong> — then leaves on its own. Choose the rhythm: every 30 minutes, hour, or two.</div></div>
+  <div class="row"><div class="k">Freshly written</div><div class="v">A <strong>new edition every morning</strong> across World, Markets, Science, History, Words, Blockchain and AI. Nothing recycled, nothing you've seen twice.</div></div>
+  <div class="row"><div class="k">Knows the moment</div><div class="v">Never over fullscreen video or screen shares. Never when you're away. Music on? Sometimes the fact is about <strong>what you're hearing</strong>.</div></div>
+  <div class="row"><div class="k">Press K to keep</div><div class="v">Hover a card and tap <strong>K</strong> — it joins your Kept page, ready for the next conversation that needs it.</div></div>
+</section>
+
+<section class="focusband" id="focus">
+  <div class="inner">
+    <div class="eyebrow">Focus</div>
+    <h2>And when you want to actually read —</h2>
+    <p>Press <span class="kbd">Alt</span> + <span class="kbd">Shift</span> + <span class="kbd">F</span> on any article. The clutter melts away — ads, sidebars, popups — leaving warm, paper-toned pages set in comfortable type. Press the speaker and it's read aloud, from wherever you click. Esc brings the web back.</p>
+    <div class="mock">
+      <div class="t">The Quiet Case for Reading More Slowly</div>
+      <div class="m">6 min read</div>
+      <div class="b">You are reading this the way the web rarely lets you: one column, one voice, nothing blinking in the margins. This is what every article looks like in Focus — including the one you were just avoiding…</div>
+    </div>
+  </div>
+</section>
+
+<section class="channels" id="channels">
+  <div class="eyebrow">Channels</div>
+  <h2>Or type any topic. Any at all.</h2>
+  <div class="chips">
+    <span class="chip on">World</span>
+    <span class="chip">Markets</span>
+    <span class="chip on">Science</span>
+    <span class="chip">Today in history</span>
+    <span class="chip">Words</span>
+    <span class="chip on">Blockchain</span>
+    <span class="chip on">AI</span>
+    <span class="chip add">+ Formula 1</span>
+    <span class="chip add">+ Georgian wine</span>
+    <span class="chip add">+ your own</span>
+  </div>
+  <p class="note">Personal channels are written for you the moment you create them — five fresh facts a day about whatever you're into.</p>
+</section>
+
+<section class="matrix">
+  <div class="eyebrow">Why Glint</div>
+  <h2 style="font-family: var(--serif); font-weight: 500; font-size: clamp(24px, 4vw, 32px); margin: 10px 0 30px;">Ambient knowledge + calm reading. No one else does both.</h2>
+  <img src="matrix.png" alt="Comparison of Glint against new-tab dashboards, daily-fact extensions, reader modes, read-aloud tools and AI sidebars — Glint is the only product offering fresh daily editorial content, ambient delivery, personalised channels, a reading view, read-aloud and context awareness together." loading="lazy">
+</section>
+
+<section class="quiet">
+  <div class="eyebrow" style="margin-bottom: 14px;">Quiet by design</div>
+  <p>No account. No tracking. No analytics. No chat box. Glint never interrupts a meeting, never shows the same thing twice, and never asks for more attention than one small card deserves.</p>
+  <p class="sub">Read the <a href="privacy.html" style="color: var(--amber);">two-minute privacy policy</a> — it fits on one page because there's nothing to disclose.</p>
+</section>
+
+<footer>
+  Glint · <a href="privacy.html">Privacy</a> · <a href="mailto:marcus@tryglint.xyz">marcus@tryglint.xyz</a>
+</footer>
+
+<script>
+  // ---- set this to your Chrome Web Store link once approved ----
+  const STORE_URL = "";
+
+  const install = document.getElementById("install");
+  if (STORE_URL) {
+    install.href = STORE_URL;
+  } else {
+    install.textContent = "Coming to Chrome — days away";
+    install.classList.add("soon");
+    install.removeAttribute("href");
+  }
+
+  // ---- live card: today's real edition, with bundled fallback ----
+  const FALLBACK = [
+    { channel: "Today in history", text: "Oxford University is older than the Aztec Empire — teaching began by 1096; Tenochtitlan was founded in 1325." },
+    { channel: "Science", text: "A day on Venus is longer than a year on Venus. It rotates that slowly." },
+    { channel: "Markets", text: "Norway's sovereign wealth fund owns about 1.5% of every listed company on Earth." },
+    { channel: "Words", text: "Apricity (n.) — the warmth of the sun in winter. English, 1623, and unjustly abandoned." }
+  ];
+
+  let facts = FALLBACK;
+  let i = 0;
+  const card = document.getElementById("card");
+  const elChannel = document.getElementById("cardChannel");
+  const elFact = document.getElementById("cardFact");
+  const burn = document.getElementById("burn");
+  const CYCLE_MS = 12000;
+  let timer = null;
+
+  fetch("https://spotaspace.github.io/glint/content/daily.json")
+    .then(r => r.json())
+    .then(payload => {
+      const pool = [];
+      for (const ch of Object.values(payload.channels || {})) {
+        for (const f of ch.facts || []) pool.push({ channel: ch.label, text: f.text });
+      }
+      if (pool.length) {
+        facts = pool.sort(() => Math.random() - 0.5);
+        document.getElementById("hint").textContent = "A real card, showing this morning's real edition. Hover to pause it.";
+        document.getElementById("hint").classList.add("live");
+      }
+    })
+    .catch(() => {});
+
+  function runBurn() {
+    burn.style.animation = "none";
+    void burn.offsetWidth;
+    burn.style.animation = "burn " + CYCLE_MS + "ms linear forwards";
+  }
+
+  function next() {
+    clearTimeout(timer);
+    card.classList.add("swap");
+    setTimeout(() => {
+      i = (i + 1) % facts.length;
+      elChannel.textContent = facts[i].channel;
+      elFact.textContent = facts[i].text;
+      card.classList.remove("swap");
+      runBurn();
+      timer = setTimeout(next, CYCLE_MS);
+    }, 400);
+  }
+
+  card.addEventListener("click", next);
+  card.addEventListener("mouseenter", () => {
+    clearTimeout(timer);
+    burn.style.animationPlayState = "paused";
+  });
+  card.addEventListener("mouseleave", () => {
+    burn.style.animationPlayState = "running";
+    timer = setTimeout(next, CYCLE_MS / 2);
+  });
+
+  runBurn();
+  timer = setTimeout(next, CYCLE_MS);
+</script>
+
+</body>
+</html>
